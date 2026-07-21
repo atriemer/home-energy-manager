@@ -513,7 +513,10 @@ template:
         icon: mdi:clipboard-play-outline
         availability: >
           {{
-            states('sensor.hem_growatt_adapter_sollleistung')
+            states('sensor.hem_entlade_sollleistung')
+              not in ['unknown', 'unavailable', 'none', '']
+            and
+            states('sensor.hem_lade_sollleistung')
               not in ['unknown', 'unavailable', 'none', '']
             and
             states('sensor.hem_growatt_adapter_istleistung')
@@ -523,9 +526,13 @@ template:
           {% set bereit =
             is_state('binary_sensor.hem_growatt_adapter_bereit', 'on')
           %}
-          {% set soll =
-            states('sensor.hem_growatt_adapter_sollleistung') | float(0)
+          {% set entladen =
+            states('sensor.hem_entlade_sollleistung') | float(0)
           %}
+          {% set laden =
+            states('sensor.hem_lade_sollleistung') | float(0)
+          %}
+          {% set soll = entladen - laden %}
           {% set ist =
             states('sensor.hem_growatt_adapter_istleistung') | float(0)
           %}
@@ -535,9 +542,9 @@ template:
 
           {% if not bereit %}
             Keine Aktion – Adapter nicht bereit
-          {% elif ist < -toleranz and soll > toleranz %}
+          {% elif ist < -toleranz and entladen > toleranz %}
             Laden stoppen
-          {% elif ist > toleranz and soll < -toleranz %}
+          {% elif ist > toleranz and laden > toleranz %}
             Entladen stoppen
           {% elif (soll - ist) | abs <= toleranz %}
             Keine Änderung erforderlich
