@@ -1,0 +1,394 @@
+################################################################################
+#
+# Home Energy Manager (HEM)
+#
+# Data Provider Layer
+#
+# Aufgabe:
+#   Beschafft Rohdaten aus lokalen Geräten oder Cloudquellen.
+#
+# Priorität:
+#   1. Lokale Daten
+#   2. Cloud
+#   3. Lokaler Notfallback
+#
+# Öffentliche Sensoren verwenden ausschließlich:
+#
+#   sensor.hem_provider_...
+#
+################################################################################
+
+template:
+  - sensor:
+      - name: "HEM Provider PV Leistung"
+        unique_id: hem_provider_pv_leistung
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        availability: >
+          {{
+            states('sensor.growatt_0hvrc0zr23rt0054_pv_total_power')
+              not in ['unknown', 'unavailable', 'none', '']
+            or
+            states('sensor.nexa2000_0hvrc0zr23rt0054_solar_power')
+              not in ['unknown', 'unavailable', 'none', '']
+          }}
+        state: >
+          {% set lokal =
+            states('sensor.growatt_0hvrc0zr23rt0054_pv_total_power')
+          %}
+          {% set cloud =
+            states('sensor.nexa2000_0hvrc0zr23rt0054_solar_power')
+          %}
+          {% set lokal_ok =
+            is_state('binary_sensor.hem_lokale_datenquelle_gueltig','on')
+          %}
+
+          {% if lokal_ok
+                and lokal not in ['unknown', 'unavailable', 'none', ''] %}
+            {{ [lokal | float, 0] | max | round(1) }}
+          {% elif cloud not in ['unknown', 'unavailable', 'none', ''] %}
+            {{ [cloud | float, 0] | max | round(1) }}
+          {% elif lokal not in ['unknown', 'unavailable', 'none', ''] %}
+            {{ [lokal | float, 0] | max | round(1) }}
+          {% endif %}
+        attributes:
+          datenquelle: >
+            {% set lokal_ok =
+              is_state('binary_sensor.hem_lokale_datenquelle_gueltig','on')
+            %}
+            {% if lokal_ok
+                  and states('sensor.growatt_0hvrc0zr23rt0054_pv_total_power')
+                    not in ['unknown', 'unavailable', 'none', ''] %}
+              lokal
+            {% elif states('sensor.nexa2000_0hvrc0zr23rt0054_solar_power')
+                    not in ['unknown', 'unavailable', 'none', ''] %}
+              cloud
+            {% elif states('sensor.growatt_0hvrc0zr23rt0054_pv_total_power')
+                    not in ['unknown', 'unavailable', 'none', ''] %}
+              lokal_fallback
+            {% else %}
+              keine
+            {% endif %}
+
+      - name: "HEM Provider Batterieleistung"
+        unique_id: hem_provider_batterieleistung
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        availability: >
+          {{
+            states('sensor.growatt_0hvrc0zr23rt0054_charging_power')
+              not in ['unknown', 'unavailable', 'none', '']
+            or
+            states('sensor.nexa2000_0hvrc0zr23rt0054_charging_power')
+              not in ['unknown', 'unavailable', 'none', '']
+            or
+            states('sensor.nexa2000_0hvrc0zr23rt0054_discharge_power')
+              not in ['unknown', 'unavailable', 'none', '']
+          }}
+        state: >
+          {% set lokal =
+            states('sensor.growatt_0hvrc0zr23rt0054_charging_power')
+          %}
+          {% set laden =
+            states('sensor.nexa2000_0hvrc0zr23rt0054_charging_power')
+          %}
+          {% set entladen =
+            states('sensor.nexa2000_0hvrc0zr23rt0054_discharge_power')
+          %}
+          {% set lokal_ok =
+            is_state('binary_sensor.hem_lokale_datenquelle_gueltig','on')
+          %}
+
+          {% if lokal_ok
+                and lokal not in ['unknown', 'unavailable', 'none', ''] %}
+            {% set leistung = lokal | float * -1 %}
+            {{ 0 if leistung | abs < 0.05 else leistung | round(1) }}
+          {% elif laden not in ['unknown', 'unavailable', 'none', '']
+                and entladen not in ['unknown', 'unavailable', 'none', ''] %}
+            {% set leistung = (entladen | float) - (laden | float) %}
+            {{ 0 if leistung | abs < 0.05 else leistung | round(1) }}
+          {% elif lokal not in ['unknown', 'unavailable', 'none', ''] %}
+            {% set leistung = lokal | float * -1 %}
+            {{ 0 if leistung | abs < 0.05 else leistung | round(1) }}
+          {% endif %}
+        attributes:
+          datenquelle: >
+            {% set lokal_ok =
+              is_state('binary_sensor.hem_lokale_datenquelle_gueltig','on')
+            %}
+            {% if lokal_ok
+                  and states('sensor.growatt_0hvrc0zr23rt0054_charging_power')
+                    not in ['unknown', 'unavailable', 'none', ''] %}
+              lokal
+            {% elif states('sensor.nexa2000_0hvrc0zr23rt0054_charging_power')
+                    not in ['unknown', 'unavailable', 'none', '']
+                  and states('sensor.nexa2000_0hvrc0zr23rt0054_discharge_power')
+                    not in ['unknown', 'unavailable', 'none', ''] %}
+              cloud
+            {% elif states('sensor.growatt_0hvrc0zr23rt0054_charging_power')
+                    not in ['unknown', 'unavailable', 'none', ''] %}
+              lokal_fallback
+            {% else %}
+              keine
+            {% endif %}
+          vorzeichen: "positiv Entladung, negativ Ladung"
+          status: "Vorzeichen im Beobachtungsbetrieb weiter prüfen"
+
+      - name: "HEM Provider Batterieladestand"
+        unique_id: hem_provider_batterieladestand
+        unit_of_measurement: "%"
+        device_class: battery
+        state_class: measurement
+        availability: >
+          {{
+            states('sensor.growatt_0hvrc0zr23rt0054_total_battery_soc')
+              not in ['unknown', 'unavailable', 'none', '']
+            or
+            states('sensor.nexa2000_0hvrc0zr23rt0054_soc')
+              not in ['unknown', 'unavailable', 'none', '']
+          }}
+        state: >
+          {% set lokal =
+            states('sensor.growatt_0hvrc0zr23rt0054_total_battery_soc')
+          %}
+          {% set cloud =
+            states('sensor.nexa2000_0hvrc0zr23rt0054_soc')
+          %}
+          {% set lokal_ok =
+            is_state('binary_sensor.hem_lokale_datenquelle_gueltig', 'on')
+          %}
+
+          {% if lokal_ok
+                and lokal not in ['unknown', 'unavailable', 'none', '']
+                and 0 <= lokal | float <= 100 %}
+            {{ lokal | float | round(1) }}
+          {% elif cloud not in ['unknown', 'unavailable', 'none', '']
+                and 0 <= cloud | float <= 100 %}
+            {{ cloud | float | round(1) }}
+          {% elif lokal not in ['unknown', 'unavailable', 'none', '']
+                and 0 <= lokal | float <= 100 %}
+            {{ lokal | float | round(1) }}
+          {% endif %}
+        attributes:
+          datenquelle: >
+            {% set lokal =
+              states('sensor.growatt_0hvrc0zr23rt0054_total_battery_soc')
+            %}
+            {% set cloud =
+              states('sensor.nexa2000_0hvrc0zr23rt0054_soc')
+            %}
+            {% set lokal_ok =
+              is_state('binary_sensor.hem_lokale_datenquelle_gueltig', 'on')
+            %}
+            {% if lokal_ok
+                  and lokal not in ['unknown', 'unavailable', 'none', '']
+                  and 0 <= lokal | float <= 100 %}
+              lokal
+            {% elif cloud not in ['unknown', 'unavailable', 'none', '']
+                  and 0 <= cloud | float <= 100 %}
+              cloud
+            {% elif lokal not in ['unknown', 'unavailable', 'none', '']
+                  and 0 <= lokal | float <= 100 %}
+              lokal_fallback
+            {% else %}
+              keine
+            {% endif %}
+
+      - name: "HEM Provider Batterie 1 Ladestand"
+        unique_id: hem_provider_batterie_1_ladestand
+        unit_of_measurement: "%"
+        device_class: battery
+        state_class: measurement
+        availability: >
+          {{
+            states('sensor.growatt_0hvrc0zr23rt0054_battery_1_soc')
+              not in ['unknown', 'unavailable', 'none', '']
+            or
+            states('sensor.nexa2000_0hvrc0zr23rt0054_bat0_soc')
+              not in ['unknown', 'unavailable', 'none', '']
+          }}
+        state: >
+          {% set lokal =
+            states('sensor.growatt_0hvrc0zr23rt0054_battery_1_soc')
+          %}
+          {% set cloud =
+            states('sensor.nexa2000_0hvrc0zr23rt0054_bat0_soc')
+          %}
+          {% set lokal_ok =
+            is_state('binary_sensor.hem_lokale_datenquelle_gueltig', 'on')
+          %}
+
+          {% if lokal_ok
+                and lokal not in ['unknown', 'unavailable', 'none', '']
+                and 0 <= lokal | float <= 100 %}
+            {{ lokal | float | round(1) }}
+          {% elif cloud not in ['unknown', 'unavailable', 'none', '']
+                and 0 <= cloud | float <= 100 %}
+            {{ cloud | float | round(1) }}
+          {% elif lokal not in ['unknown', 'unavailable', 'none', '']
+                and 0 <= lokal | float <= 100 %}
+            {{ lokal | float | round(1) }}
+          {% endif %}
+        attributes:
+          datenquelle: >
+            {% set lokal =
+              states('sensor.growatt_0hvrc0zr23rt0054_battery_1_soc')
+            %}
+            {% set cloud =
+              states('sensor.nexa2000_0hvrc0zr23rt0054_bat0_soc')
+            %}
+            {% set lokal_ok =
+              is_state('binary_sensor.hem_lokale_datenquelle_gueltig', 'on')
+            %}
+            {% if lokal_ok
+                  and lokal not in ['unknown', 'unavailable', 'none', '']
+                  and 0 <= lokal | float <= 100 %}
+              lokal
+            {% elif cloud not in ['unknown', 'unavailable', 'none', '']
+                  and 0 <= cloud | float <= 100 %}
+              cloud
+            {% elif lokal not in ['unknown', 'unavailable', 'none', '']
+                  and 0 <= lokal | float <= 100 %}
+              lokal_fallback
+            {% else %}
+              keine
+            {% endif %}
+
+      - name: "HEM Provider Batterie 2 Ladestand"
+        unique_id: hem_provider_batterie_2_ladestand
+        unit_of_measurement: "%"
+        device_class: battery
+        state_class: measurement
+        availability: >
+          {{
+            states('sensor.growatt_0hvrc0zr23rt0054_battery_2_soc')
+              not in ['unknown', 'unavailable', 'none', '']
+            or
+            states('sensor.nexa2000_0hvrc0zr23rt0054_bat1_soc')
+              not in ['unknown', 'unavailable', 'none', '']
+          }}
+        state: >
+          {% set lokal =
+            states('sensor.growatt_0hvrc0zr23rt0054_battery_2_soc')
+          %}
+          {% set cloud =
+            states('sensor.nexa2000_0hvrc0zr23rt0054_bat1_soc')
+          %}
+          {% set lokal_ok =
+            is_state('binary_sensor.hem_lokale_datenquelle_gueltig','on')
+          %}
+
+          {% if lokal_ok
+                and lokal not in ['unknown', 'unavailable', 'none', '']
+                and 0 <= lokal | float <= 100 %}
+            {{ lokal | float | round(1) }}
+          {% elif cloud not in ['unknown', 'unavailable', 'none', '']
+                and 0 <= cloud | float <= 100 %}
+            {{ cloud | float | round(1) }}
+          {% elif lokal not in ['unknown', 'unavailable', 'none', '']
+                and 0 <= lokal | float <= 100 %}
+            {{ lokal | float | round(1) }}
+          {% endif %}
+        attributes:
+          datenquelle: >
+            {% set lokal =
+              states('sensor.growatt_0hvrc0zr23rt0054_battery_2_soc')
+            %}
+            {% set cloud =
+              states('sensor.nexa2000_0hvrc0zr23rt0054_bat1_soc')
+            %}
+            {% set lokal_ok =
+              is_state('binary_sensor.hem_lokale_datenquelle_gueltig','on')
+            %}
+            {% if lokal_ok
+                  and lokal not in ['unknown', 'unavailable', 'none', '']
+                  and 0 <= lokal | float <= 100 %}
+              lokal
+            {% elif cloud not in ['unknown', 'unavailable', 'none', '']
+                  and 0 <= cloud | float <= 100 %}
+              cloud
+            {% elif lokal not in ['unknown', 'unavailable', 'none', '']
+                  and 0 <= lokal | float <= 100 %}
+              lokal_fallback
+            {% else %}
+              keine
+            {% endif %}
+
+      - name: "HEM Provider Batterie 1 Temperatur"
+        unique_id: hem_provider_batterie_1_temperatur
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        availability: >
+          {{
+            states('sensor.growatt_0hvrc0zr23rt0054_battery_1_temperature')
+              not in ['unknown', 'unavailable', 'none', '']
+            or
+            states('sensor.nexa2000_0hvrc0zr23rt0054_bat0_temperature')
+              not in ['unknown', 'unavailable', 'none', '']
+          }}
+        state: >
+          {% set lokal =
+            states('sensor.growatt_0hvrc0zr23rt0054_battery_1_temperature')
+          %}
+          {% set cloud =
+            states('sensor.nexa2000_0hvrc0zr23rt0054_bat0_temperature')
+          %}
+          {% set lokal_ok =
+            is_state('binary_sensor.hem_lokale_datenquelle_gueltig', 'on')
+          %}
+
+          {% if lokal_ok
+                and lokal not in ['unknown', 'unavailable', 'none', '']
+                and -20 <= lokal | float <= 80 %}
+            {{ lokal | float | round(1) }}
+          {% elif cloud not in ['unknown', 'unavailable', 'none', '']
+                and -20 <= cloud | float <= 80 %}
+            {{ cloud | float | round(1) }}
+          {% elif lokal not in ['unknown', 'unavailable', 'none', '']
+                and -20 <= lokal | float <= 80 %}
+            {{ lokal | float | round(1) }}
+          {% endif %}
+        attributes:
+          datenquelle: >
+            {% set lokal =
+              states('sensor.growatt_0hvrc0zr23rt0054_battery_1_temperature')
+            %}
+            {% set cloud =
+              states('sensor.nexa2000_0hvrc0zr23rt0054_bat0_temperature')
+            %}
+            {% set lokal_ok =
+              is_state('binary_sensor.hem_lokale_datenquelle_gueltig', 'on')
+            %}
+            {% if lokal_ok
+                  and lokal not in ['unknown', 'unavailable', 'none', '']
+                  and -20 <= lokal | float <= 80 %}
+              lokal
+            {% elif cloud not in ['unknown', 'unavailable', 'none', '']
+                  and -20 <= cloud | float <= 80 %}
+              cloud
+            {% elif lokal not in ['unknown', 'unavailable', 'none', '']
+                  and -20 <= lokal | float <= 80 %}
+              lokal_fallback
+            {% else %}
+              keine
+            {% endif %}
+
+      - name: "HEM Provider Batterie 2 Temperatur"
+        unique_id: hem_provider_batterie_2_temperatur
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        availability: >
+          {{ states('sensor.nexa2000_0hvrc0zr23rt0054_bat1_temperature')
+             not in ['unknown', 'unavailable', 'none', ''] }}
+        state: >
+          {{ states('sensor.nexa2000_0hvrc0zr23rt0054_bat1_temperature')
+             | float | round(1) }}
+        attributes:
+          datenquelle: "cloud"
+          datenqualitaet: "cloud_only"
+          quell_entitaet: "sensor.nexa2000_0hvrc0zr23rt0054_bat1_temperature"
+          hinweis: "Lokale Quelle für Batterie 2 noch nicht gefunden"
