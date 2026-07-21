@@ -230,10 +230,10 @@ template:
         state_class: measurement
         availability: >
           {{
-            states('sensor.hem_soc_differenz_controller')
+            states('sensor.hem_soc_differenz')
               not in ['unknown', 'unavailable', 'none', '']
             and
-            states('sensor.hem_temperaturdifferenz_controller')
+            states('sensor.hem_temperaturdifferenz')
               not in ['unknown', 'unavailable', 'none', '']
           }}
         state: >
@@ -262,7 +262,7 @@ template:
           %}
 
           {% set soc_delta =
-            states('sensor.hem_soc_differenz_controller')
+            states('sensor.hem_soc_differenz')
               | float(0)
           %}
           {% set soc_start =
@@ -292,7 +292,7 @@ template:
           %}
 
           {% set temperatur_delta =
-            states('sensor.hem_temperaturdifferenz_controller')
+            states('sensor.hem_temperaturdifferenz')
               | float(0)
           %}
           {% set temperatur_start =
@@ -398,11 +398,11 @@ template:
               }}
             {% endif %}
           soc_differenz: >
-            {{ states('sensor.hem_soc_differenz_controller') }}
+            {{ states('sensor.hem_soc_differenz') }}
           temperaturdifferenz: >
             {{
               states(
-                'sensor.hem_temperaturdifferenz_controller'
+                'sensor.hem_temperaturdifferenz'
               )
             }}
 
@@ -689,10 +689,10 @@ template:
           netzleistung: >
             {{ states('sensor.hem_netzleistung') }}
           soc_differenz: >
-            {{ states('sensor.hem_soc_differenz_controller') }}
+            {{ states('sensor.hem_soc_differenz') }}
           temperaturdifferenz: >
             {{
               states(
-                'sensor.hem_temperaturdifferenz_controller'
+                'sensor.hem_temperaturdifferenz'
               )
             }}
