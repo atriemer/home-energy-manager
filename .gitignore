@@ -1,0 +1,41 @@
+# Home Assistant runtime data
+.storage/
+home-assistant.log*
+home-assistant_v2.db*
+*.db
+*.db-shm
+*.db-wal
+
+# Secrets and credentials
+secrets.yaml
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+.env
+.env.*
+
+# Backup and temporary files
+*.bak
+*.bak-*
+*.vor_*
+*.disabled
+*~
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Operating systems
+.DS_Store
+Thumbs.db

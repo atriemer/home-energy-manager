@@ -1,0 +1,495 @@
+# HEM – Situationsbewertung
+#
+# Diese Datei bewertet den Zustand des Energiesystems.
+# Sie führt keinerlei Schalt- oder Steuerbefehle aus.
+#
+# Aktivierung erst in einem bewusst gewählten Testfenster.
+
+input_boolean:
+  hem_automatik:
+    name: HEM Automatik
+    icon: mdi:robot
+    initial: false
+
+  hem_manuelle_sperre:
+    name: HEM Manuelle Sperre
+    icon: mdi:hand-back-right
+    initial: false
+
+  hem_aktive_vollladung:
+    name: HEM Aktive Vollladung
+    icon: mdi:battery-charging-100
+    initial: false
+
+input_number:
+  hem_einzelakku_minimum:
+    name: HEM Einzelakku Minimum
+    icon: mdi:battery-alert
+    unit_of_measurement: "%"
+    min: 3
+    max: 30
+    step: 1
+    initial: 10
+
+  hem_soc_differenz_schonbetrieb:
+    name: HEM SOC-Differenz Schonbetrieb
+    icon: mdi:scale-balance
+    unit_of_measurement: "%"
+    min: 1
+    max: 30
+    step: 1
+    initial: 5
+
+  hem_soc_differenz_hart:
+    name: HEM SOC-Differenz kritisch
+    icon: mdi:alert-octagon
+    unit_of_measurement: "%"
+    min: 2
+    max: 50
+    step: 1
+    initial: 15
+
+  hem_temperatur_schonbetrieb:
+    name: HEM Temperatur Schonbetrieb
+    icon: mdi:thermometer-alert
+    unit_of_measurement: "°C"
+    min: 20
+    max: 60
+    step: 1
+    initial: 40
+
+  hem_temperatur_hart:
+    name: HEM Temperatur kritisch
+    icon: mdi:thermometer-high
+    unit_of_measurement: "°C"
+    min: 25
+    max: 70
+    step: 1
+    initial: 50
+
+  hem_temperaturdifferenz_schonbetrieb:
+    name: HEM Temperaturdifferenz Schonbetrieb
+    icon: mdi:thermometer-lines
+    unit_of_measurement: "°C"
+    min: 1
+    max: 20
+    step: 0.5
+    initial: 3
+
+  hem_export_start:
+    name: HEM Exportdruck Start
+    icon: mdi:transmission-tower-export
+    unit_of_measurement: W
+    min: 20
+    max: 1000
+    step: 10
+    initial: 100
+
+  hem_export_stark:
+    name: HEM Starker Exportdruck
+    icon: mdi:transmission-tower-export
+    unit_of_measurement: W
+    min: 50
+    max: 2000
+    step: 10
+    initial: 300
+
+template:
+  - sensor:
+      - name: "HEM SOC-Differenz"
+        unique_id: hem_soc_differenz
+        icon: mdi:scale-balance
+        unit_of_measurement: "%"
+        state_class: measurement
+        availability: >
+          {{
+            states('sensor.hem_batterie_1_ladestand')
+              not in ['unknown', 'unavailable', 'none', '']
+            and
+            states('sensor.hem_batterie_2_ladestand')
+              not in ['unknown', 'unavailable', 'none', '']
+          }}
+        state: >
+          {% set soc_1 =
+            states('sensor.hem_batterie_1_ladestand') | float
+          %}
+          {% set soc_2 =
+            states('sensor.hem_batterie_2_ladestand') | float
+          %}
+          {{ (soc_1 - soc_2) | abs | round(1) }}
+        attributes:
+          batterie_1: >
+            {{ states('sensor.hem_batterie_1_ladestand') }}
+          batterie_2: >
+            {{ states('sensor.hem_batterie_2_ladestand') }}
+          niedrigerer_einzelakku: >
+            {{
+              [
+                states('sensor.hem_batterie_1_ladestand') | float(0),
+                states('sensor.hem_batterie_2_ladestand') | float(0)
+              ] | min
+            }}
+
+      - name: "HEM Temperaturdifferenz"
+        unique_id: hem_temperaturdifferenz
+        icon: mdi:thermometer-lines
+        unit_of_measurement: "°C"
+        state_class: measurement
+        availability: >
+          {{
+            states('sensor.hem_batterie_1_temperatur')
+              not in ['unknown', 'unavailable', 'none', '']
+            and
+            states('sensor.hem_batterie_2_temperatur')
+              not in ['unknown', 'unavailable', 'none', '']
+          }}
+        state: >
+          {% set temperatur_1 =
+            states('sensor.hem_batterie_1_temperatur') | float
+          %}
+          {% set temperatur_2 =
+            states('sensor.hem_batterie_2_temperatur') | float
+          %}
+          {{ (temperatur_1 - temperatur_2) | abs | round(1) }}
+        attributes:
+          batterie_1: >
+            {{ states('sensor.hem_batterie_1_temperatur') }}
+          batterie_2: >
+            {{ states('sensor.hem_batterie_2_temperatur') }}
+          höchste_temperatur: >
+            {{
+              [
+                states('sensor.hem_batterie_1_temperatur') | float(0),
+                states('sensor.hem_batterie_2_temperatur') | float(0)
+              ] | max
+            }}
+
+      - name: "HEM Batteriesituation"
+        unique_id: hem_batteriesituation
+        icon: mdi:battery-heart-variant
+        state: >
+          {% set daten_ok =
+            is_state(
+              'binary_sensor.hem_batteriedaten_gultig',
+              'on'
+            )
+            and is_state(
+              'binary_sensor.hem_temperaturen_gultig',
+              'on'
+            )
+          %}
+
+          {% set soc_1 =
+            states('sensor.hem_batterie_1_ladestand') | float(0)
+          %}
+          {% set soc_2 =
+            states('sensor.hem_batterie_2_ladestand') | float(0)
+          %}
+          {% set soc_min = [soc_1, soc_2] | min %}
+          {% set soc_delta =
+            states('sensor.hem_soc_differenz') | float(0)
+          %}
+
+          {% set temperatur_1 =
+            states('sensor.hem_batterie_1_temperatur') | float(0)
+          %}
+          {% set temperatur_2 =
+            states('sensor.hem_batterie_2_temperatur') | float(0)
+          %}
+          {% set temperatur_max =
+            [temperatur_1, temperatur_2] | max
+          %}
+          {% set temperatur_delta =
+            states('sensor.hem_temperaturdifferenz') | float(0)
+          %}
+
+          {% set soc_minimum =
+            states('input_number.hem_einzelakku_minimum')
+              | float(10)
+          %}
+          {% set soc_delta_schon =
+            states(
+              'input_number.hem_soc_differenz_schonbetrieb'
+            ) | float(5)
+          %}
+          {% set soc_delta_hart =
+            states(
+              'input_number.hem_soc_differenz_hart'
+            ) | float(15)
+          %}
+          {% set temperatur_schon =
+            states(
+              'input_number.hem_temperatur_schonbetrieb'
+            ) | float(40)
+          %}
+          {% set temperatur_hart =
+            states(
+              'input_number.hem_temperatur_hart'
+            ) | float(50)
+          %}
+          {% set temperatur_delta_schon =
+            states(
+              'input_number.hem_temperaturdifferenz_schonbetrieb'
+            ) | float(3)
+          %}
+
+          {% if not daten_ok %}
+            Daten fehlen
+          {% elif soc_min <= soc_minimum %}
+            Einzelakku-Schutz
+          {% elif temperatur_max >= temperatur_hart %}
+            Temperatur-Schutz
+          {% elif soc_delta >= soc_delta_hart %}
+            SOC-Drift kritisch
+          {% elif is_state(
+              'input_boolean.hem_aktive_vollladung',
+              'on'
+            ) %}
+            Vollladung
+          {% elif temperatur_max >= temperatur_schon %}
+            Abkühlen
+          {% elif temperatur_delta >= temperatur_delta_schon %}
+            Temperaturausgleich
+          {% elif soc_delta >= soc_delta_schon %}
+            SOC-Ausgleich
+          {% else %}
+            Bereit
+          {% endif %}
+        attributes:
+          gesamt_soc: >
+            {{ states('sensor.hem_batterieladestand') }}
+          batterie_1_soc: >
+            {{ states('sensor.hem_batterie_1_ladestand') }}
+          batterie_2_soc: >
+            {{ states('sensor.hem_batterie_2_ladestand') }}
+          soc_differenz: >
+            {{ states('sensor.hem_soc_differenz') }}
+          batterie_1_temperatur: >
+            {{ states('sensor.hem_batterie_1_temperatur') }}
+          batterie_2_temperatur: >
+            {{ states('sensor.hem_batterie_2_temperatur') }}
+          temperaturdifferenz: >
+            {{ states('sensor.hem_temperaturdifferenz') }}
+
+      - name: "HEM Betriebssituation"
+        unique_id: hem_betriebssituation
+        icon: mdi:home-lightning-bolt-outline
+        state: >
+          {% set netz =
+            states('sensor.hem_netzleistung') | float(0)
+          %}
+          {% set export_start =
+            states('input_number.hem_export_start') | float(100)
+          %}
+          {% set export_stark =
+            states('input_number.hem_export_stark') | float(300)
+          %}
+          {% set pv =
+            states('sensor.hem_pv_leistung') | float(0)
+          %}
+          {% set soc =
+            states('sensor.hem_batterieladestand') | float(0)
+          %}
+
+          {#
+            HEM-Konvention:
+            positive Netzleistung = Netzbezug
+            negative Netzleistung = Einspeisung
+          #}
+
+          {% if not is_state(
+              'binary_sensor.hem_netzleistung_gultig',
+              'on'
+            ) %}
+            Netzleistung unbekannt
+          {% elif netz <= (0 - export_stark) %}
+            Starker Export
+          {% elif netz <= (0 - export_start) %}
+            Export
+          {% elif netz >= export_stark %}
+            Starker Netzbezug
+          {% elif netz >= export_start %}
+            Netzbezug
+          {% elif pv > 50 and soc >= 98 %}
+            Voll bei PV
+          {% else %}
+            Ausgeglichen
+          {% endif %}
+
+      - name: "HEM Empfohlene Strategie"
+        unique_id: hem_empfohlene_strategie
+        icon: mdi:strategy
+        state: >
+          {% set batterie =
+            states('sensor.hem_batteriesituation')
+          %}
+          {% set betrieb =
+            states('sensor.hem_betriebssituation')
+          %}
+          {% set manuell =
+            is_state('input_boolean.hem_manuelle_sperre', 'on')
+          %}
+          {% set automatik =
+            is_state('input_boolean.hem_automatik', 'on')
+          %}
+          {% set harte_sperre =
+            is_state(
+              'binary_sensor.hem_batterie_hart_gesperrt',
+              'on'
+            )
+          %}
+          {% set exportdruck =
+            is_state(
+              'binary_sensor.hem_pv_uberschussdruck',
+              'on'
+            )
+          %}
+
+          {% if manuell %}
+            Manuell gesperrt
+          {% elif not automatik %}
+            Nur beobachten
+          {% elif harte_sperre %}
+            Batterie schützen
+          {% elif exportdruck %}
+            Export vermeiden
+          {% elif batterie in [
+              'Abkühlen',
+              'Temperaturausgleich',
+              'SOC-Ausgleich'
+            ] %}
+            Schonbetrieb
+          {% elif betrieb in [
+              'Netzbezug',
+              'Starker Netzbezug'
+            ] %}
+            Netzbezug reduzieren
+          {% else %}
+            Normalbetrieb
+          {% endif %}
+        attributes:
+          steuerung_aktiv: >
+            {{
+              is_state('input_boolean.hem_automatik', 'on')
+              and not is_state(
+                'input_boolean.hem_manuelle_sperre',
+                'on'
+              )
+            }}
+          batteriesituation: >
+            {{ states('sensor.hem_batteriesituation') }}
+          betriebssituation: >
+            {{ states('sensor.hem_betriebssituation') }}
+
+  - binary_sensor:
+      - name: "HEM Batterie hart gesperrt"
+        unique_id: hem_batterie_hart_gesperrt
+        device_class: safety
+        state: >
+          {{
+            states('sensor.hem_batteriesituation')
+            in [
+              'Daten fehlen',
+              'Einzelakku-Schutz',
+              'Temperatur-Schutz',
+              'SOC-Drift kritisch'
+            ]
+          }}
+        attributes:
+          grund: >
+            {{ states('sensor.hem_batteriesituation') }}
+
+      - name: "HEM Batterie Schonbetrieb"
+        unique_id: hem_batterie_schonbetrieb
+        state: >
+          {{
+            states('sensor.hem_batteriesituation')
+            in [
+              'Abkühlen',
+              'Temperaturausgleich',
+              'SOC-Ausgleich'
+            ]
+          }}
+        attributes:
+          grund: >
+            {{ states('sensor.hem_batteriesituation') }}
+
+      - name: "HEM PV Überschussdruck"
+        unique_id: hem_pv_uberschussdruck
+        icon: mdi:solar-power-variant
+        state: >
+          {% set netz =
+            states('sensor.hem_netzleistung') | float(0)
+          %}
+          {% set export_start =
+            states('input_number.hem_export_start') | float(100)
+          %}
+          {% set pv =
+            states('sensor.hem_pv_leistung') | float(0)
+          %}
+          {% set soc =
+            states('sensor.hem_batterieladestand') | float(0)
+          %}
+
+          {{
+            is_state(
+              'binary_sensor.hem_netzleistung_gultig',
+              'on'
+            )
+            and pv > 50
+            and soc >= 95
+            and netz <= (0 - export_start)
+          }}
+        attributes:
+          netzleistung: >
+            {{ states('sensor.hem_netzleistung') }}
+          pv_leistung: >
+            {{ states('sensor.hem_pv_leistung') }}
+          batterie_soc: >
+            {{ states('sensor.hem_batterieladestand') }}
+          bedeutung: >
+            PV-Produktion vorhanden, Batterie nahezu voll und
+            messbare Einspeisung ins Netz
+
+      - name: "HEM Entladung empfohlen"
+        unique_id: hem_entladung_empfohlen
+        icon: mdi:battery-arrow-down
+        state: >
+          {% set harte_sperre =
+            is_state(
+              'binary_sensor.hem_batterie_hart_gesperrt',
+              'on'
+            )
+          %}
+          {% set schonbetrieb =
+            is_state(
+              'binary_sensor.hem_batterie_schonbetrieb',
+              'on'
+            )
+          %}
+          {% set exportdruck =
+            is_state(
+              'binary_sensor.hem_pv_uberschussdruck',
+              'on'
+            )
+          %}
+          {% set netzbezug =
+            states('sensor.hem_betriebssituation')
+            in ['Netzbezug', 'Starker Netzbezug']
+          %}
+
+          {{
+            not harte_sperre
+            and (
+              exportdruck
+              or (
+                netzbezug
+                and not schonbetrieb
+              )
+            )
+          }}
+        attributes:
+          logik: >
+            Entladung bei Netzbezug nur außerhalb des Schonbetriebs.
+            Bei PV-Export darf der Schonbetrieb übersteuert werden.
+            Eine harte Batteriesperre wird niemals übersteuert.

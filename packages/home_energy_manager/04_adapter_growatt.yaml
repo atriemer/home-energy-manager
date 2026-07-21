@@ -1,0 +1,580 @@
+# Home Energy Manager
+# Growatt-/GroBro-Geräteadapter
+#
+# Aktueller Entwicklungsstand:
+#   sicherheitsverriegelter Schreibbetrieb
+#
+# Gerätebefehle werden nur bei aktivem Schreibzugriff,
+# schreibbereitem Adapter und ohne erkannte Fremdsteuerung gesendet.
+#
+# Vorzeichenkonvention:
+#   positiv = Entladen
+#   negativ = Laden
+#   0       = Inaktiv
+#
+# Der herstellerunabhängige Controller liefert:
+#   sensor.hem_speicher_sollleistung
+#
+# Der Adapter übersetzt diesen Sollwert in konkrete
+# Growatt-/GroBro-Gerätebefehle.
+
+input_number:
+  hem_adapter_maximale_schrittweite:
+    name: HEM Adapter maximale Schrittweite
+    icon: mdi:stairs
+    unit_of_measurement: W
+    min: 25
+    max: 500
+    step: 25
+    initial: 100
+
+  hem_adapter_toleranz:
+    name: HEM Adapter Leistungstoleranz
+    icon: mdi:plus-minus-variant
+    unit_of_measurement: W
+    min: 10
+    max: 250
+    step: 10
+    initial: 50
+
+input_boolean:
+  hem_adapter_schreibzugriff:
+    name: HEM Adapter Schreibzugriff
+    icon: mdi:lock
+    initial: false
+
+template:
+  - binary_sensor:
+      - name: "HEM Growatt Adapter bereit"
+        unique_id: hem_growatt_adapter_bereit
+        icon: mdi:connection
+        device_class: connectivity
+        state: >
+          {{
+            is_state('binary_sensor.hem_daten_gultig', 'on')
+            and
+            is_state('binary_sensor.hem_batterie_hart_gesperrt', 'off')
+            and
+            states('sensor.hem_speicher_sollleistung')
+              not in ['unknown', 'unavailable', 'none', '']
+            and
+            states('sensor.hem_aktuelle_speicherleistung')
+              not in ['unknown', 'unavailable', 'none', '']
+          }}
+        attributes:
+          daten_gültig: >
+            {{ states('binary_sensor.hem_daten_gultig') }}
+          batterie_hart_gesperrt: >
+            {{ states('binary_sensor.hem_batterie_hart_gesperrt') }}
+          schreibzugriff: >
+            {{ states('input_boolean.hem_adapter_schreibzugriff') }}
+          betriebsart: >
+            {% if is_state('input_boolean.hem_adapter_schreibzugriff', 'on') %}
+              Schreibbetrieb freigegeben
+            {% else %}
+              Beobachtungsbetrieb
+            {% endif %}
+
+      - name: "HEM Growatt Adapter Fremdsteuerung aktiv"
+        unique_id: hem_growatt_adapter_fremdsteuerung_aktiv
+        icon: mdi:account-multiple-alert-outline
+        state: >
+          {{
+            is_state(
+              'automation.nexa_2000_hausprioritat_mit_akkuschonung',
+              'on'
+            )
+            or
+            is_state(
+              'automation.nexa_2000_notladung_aus_netz_bei_akku_reserve',
+              'on'
+            )
+            or
+            is_state(
+              'automation.nexa_2000_kalibrier_lademodus_start',
+              'on'
+            )
+            or
+            is_state(
+              'automation.nexa_2000_kalibrier_lademodus_ende_bei_100_prozent',
+              'on'
+            )
+            or
+            is_state('input_boolean.nexa_kalibrier_lademodus', 'on')
+          }}
+        attributes:
+          hauspriorität: >
+            {{
+              states(
+                'automation.nexa_2000_hausprioritat_mit_akkuschonung'
+              )
+            }}
+          notladung: >
+            {{
+              states(
+                'automation.nexa_2000_notladung_aus_netz_bei_akku_reserve'
+              )
+            }}
+          kalibrier_lademodus: >
+            {{ states('input_boolean.nexa_kalibrier_lademodus') }}
+          bedeutung: >
+            Mindestens eine vorhandene NEXA-Steuerung könnte gleichzeitig
+            mit dem HEM auf das Gerät schreiben
+
+      - name: "HEM Growatt Adapter Schreibbereit"
+        unique_id: hem_growatt_adapter_schreibbereit
+        icon: mdi:shield-check-outline
+        device_class: safety
+        state: >
+          {{
+            is_state('binary_sensor.hem_growatt_adapter_bereit', 'on')
+            and
+            is_state(
+              'binary_sensor.hem_growatt_adapter_fremdsteuerung_aktiv',
+              'off'
+            )
+            and
+            states(
+              'number.growatt_0hvrc0zr23rt0054_slot_1_power'
+            ) not in ['unknown', 'unavailable', 'none', '']
+            and
+            is_state(
+              'switch.growatt_0hvrc0zr23rt0054_slot_1_enabled',
+              'on'
+            )
+          }}
+        attributes:
+          beobachtungsadapter_bereit: >
+            {{ states('binary_sensor.hem_growatt_adapter_bereit') }}
+          fremdsteuerung_aktiv: >
+            {{
+              states(
+                'binary_sensor.hem_growatt_adapter_fremdsteuerung_aktiv'
+              )
+            }}
+          slot_1_power: >
+            {{
+              states(
+                'number.growatt_0hvrc0zr23rt0054_slot_1_power'
+              )
+            }}
+          charge_limit: >
+            {{
+              states(
+                'number.growatt_0hvrc0zr23rt0054_charge_limit'
+              )
+            }}
+          discharge_limit: >
+            {{
+              states(
+                'number.growatt_0hvrc0zr23rt0054_discharge_limit'
+              )
+            }}
+          slot_1_enabled: >
+            {{
+              states(
+                'switch.growatt_0hvrc0zr23rt0054_slot_1_enabled'
+              )
+            }}
+          hinweis: >
+            Schreibbereit bedeutet nur, dass die technischen Voraussetzungen
+            erfüllt sind. Es werden weiterhin keine Befehle gesendet.
+
+      - name: "HEM Growatt Adapter Schreiben erforderlich"
+        unique_id: hem_growatt_adapter_schreiben_erforderlich
+        icon: mdi:pencil-outline
+        state: >
+          {% set ziel =
+            states('sensor.hem_growatt_adapter_geratesollwert')
+          %}
+          {% set aktuell =
+            states(
+              'number.growatt_0hvrc0zr23rt0054_slot_1_power'
+            )
+          %}
+
+          {{
+            ziel not in ['unknown', 'unavailable', 'none', '']
+            and
+            aktuell not in ['unknown', 'unavailable', 'none', '']
+            and
+            (ziel | float(0)) != (aktuell | float(0))
+          }}
+        attributes:
+          geraetesollwert: >
+            {{ states('sensor.hem_growatt_adapter_geratesollwert') }} W
+          aktueller_slotwert: >
+            {{
+              states(
+                'number.growatt_0hvrc0zr23rt0054_slot_1_power'
+              )
+            }} W
+          schreibzugriff: >
+            {{ states('input_boolean.hem_adapter_schreibzugriff') }}
+          hinweis: >
+            Dieser Sensor löst noch keinen Gerätebefehl aus
+
+      - name: "HEM Growatt Adapter Sollwert erreicht"
+        unique_id: hem_growatt_adapter_sollwert_erreicht
+        icon: mdi:target
+        availability: >
+          {{
+            states('sensor.hem_growatt_adapter_abweichung')
+              not in ['unknown', 'unavailable', 'none', '']
+          }}
+        state: >
+          {% set abweichung =
+            states('sensor.hem_growatt_adapter_abweichung') | float(0)
+          %}
+          {% set toleranz =
+            states('input_number.hem_adapter_toleranz') | float(50)
+          %}
+          {{ abweichung | abs <= toleranz }}
+        attributes:
+          toleranz: >
+            {{ states('input_number.hem_adapter_toleranz') }} W
+
+  - sensor:
+      - name: "HEM Growatt Adapter Sollleistung"
+        unique_id: hem_growatt_adapter_sollleistung
+        icon: mdi:battery-sync
+        unit_of_measurement: W
+        state_class: measurement
+        availability: >
+          {{
+            states('sensor.hem_speicher_sollleistung')
+              not in ['unknown', 'unavailable', 'none', '']
+          }}
+        state: >
+          {{
+            states('sensor.hem_speicher_sollleistung')
+              | float(0)
+              | round(0)
+          }}
+        attributes:
+          quelle: sensor.hem_speicher_sollleistung
+          vorzeichen: >
+            positiv Entladung, negativ Ladung
+
+      - name: "HEM Growatt Adapter Istleistung"
+        unique_id: hem_growatt_adapter_istleistung
+        icon: mdi:battery-clock
+        unit_of_measurement: W
+        state_class: measurement
+        availability: >
+          {{
+            states('sensor.hem_aktuelle_speicherleistung')
+              not in ['unknown', 'unavailable', 'none', '']
+          }}
+        state: >
+          {{
+            states('sensor.hem_aktuelle_speicherleistung')
+              | float(0)
+              | round(0)
+          }}
+        attributes:
+          quelle: sensor.hem_aktuelle_speicherleistung
+          vorzeichen: >
+            positiv Entladung, negativ Ladung
+
+      - name: "HEM Growatt Adapter Abweichung"
+        unique_id: hem_growatt_adapter_abweichung
+        icon: mdi:delta
+        unit_of_measurement: W
+        state_class: measurement
+        availability: >
+          {{
+            states('sensor.hem_growatt_adapter_sollleistung')
+              not in ['unknown', 'unavailable', 'none', '']
+            and
+            states('sensor.hem_growatt_adapter_istleistung')
+              not in ['unknown', 'unavailable', 'none', '']
+          }}
+        state: >
+          {% set soll =
+            states('sensor.hem_growatt_adapter_sollleistung') | float(0)
+          %}
+          {% set ist =
+            states('sensor.hem_growatt_adapter_istleistung') | float(0)
+          %}
+          {{ (soll - ist) | round(0) }}
+        attributes:
+          berechnung: Sollleistung minus Istleistung
+
+      - name: "HEM Growatt Adapter Zielmodus"
+        unique_id: hem_growatt_adapter_zielmodus
+        icon: mdi:cog-transfer
+        availability: >
+          {{
+            states('sensor.hem_growatt_adapter_sollleistung')
+              not in ['unknown', 'unavailable', 'none', '']
+          }}
+        state: >
+          {% set soll =
+            states('sensor.hem_growatt_adapter_sollleistung') | float(0)
+          %}
+          {% set toleranz =
+            states('input_number.hem_adapter_toleranz') | float(50)
+          %}
+
+          {% if soll > toleranz %}
+            Entladen
+          {% elif soll < -toleranz %}
+            Laden
+          {% else %}
+            Inaktiv
+          {% endif %}
+        attributes:
+          sollleistung: >
+            {{ states('sensor.hem_growatt_adapter_sollleistung') }} W
+
+      - name: "HEM Growatt Adapter nächster Leistungsbefehl"
+        unique_id: hem_growatt_adapter_naechster_leistungsbefehl
+        icon: mdi:step-forward
+        unit_of_measurement: W
+        state_class: measurement
+        availability: >
+          {{
+            is_state('binary_sensor.hem_growatt_adapter_bereit', 'on')
+          }}
+        state: >
+          {% set soll =
+            states('sensor.hem_growatt_adapter_sollleistung') | float(0)
+          %}
+          {% set ist =
+            states('sensor.hem_growatt_adapter_istleistung') | float(0)
+          %}
+          {% set schritt =
+            states(
+              'input_number.hem_adapter_maximale_schrittweite'
+            ) | float(100)
+          %}
+          {% set toleranz =
+            states('input_number.hem_adapter_toleranz') | float(50)
+          %}
+
+          {#
+            Beim Wechsel zwischen Laden und Entladen wird zuerst
+            ein neutraler Befehl von 0 W vorgesehen.
+          #}
+          {% if
+            (ist < -toleranz and soll > toleranz)
+            or
+            (ist > toleranz and soll < -toleranz)
+          %}
+            0
+          {% else %}
+            {% set differenz = soll - ist %}
+
+            {% if differenz | abs <= toleranz %}
+              {{ soll | round(0) }}
+            {% elif differenz > 0 %}
+              {{ [ist + schritt, soll] | min | round(0) }}
+            {% else %}
+              {{ [ist - schritt, soll] | max | round(0) }}
+            {% endif %}
+          {% endif %}
+        attributes:
+          hinweis: >
+            Nur Simulation – dieser Wert wird nicht an den NEXA gesendet
+          maximale_schrittweite: >
+            {{
+              states(
+                'input_number.hem_adapter_maximale_schrittweite'
+              )
+            }} W
+          vorzeichenwechsel: >
+            {% set soll =
+              states('sensor.hem_growatt_adapter_sollleistung')
+                | float(0)
+            %}
+            {% set ist =
+              states('sensor.hem_growatt_adapter_istleistung')
+                | float(0)
+            %}
+            {% set toleranz =
+              states('input_number.hem_adapter_toleranz') | float(50)
+            %}
+            {{
+              (ist < -toleranz and soll > toleranz)
+              or
+              (ist > toleranz and soll < -toleranz)
+            }}
+
+      - name: "HEM Growatt Adapter Gerätesollwert"
+        unique_id: hem_growatt_adapter_geraetesollwert
+        default_entity_id: sensor.hem_growatt_adapter_geratesollwert
+        icon: mdi:tune-vertical
+        unit_of_measurement: W
+        state_class: measurement
+        availability: >
+          {{
+            states('sensor.hem_growatt_adapter_sollleistung')
+              not in ['unknown', 'unavailable', 'none', '']
+            and
+            states(
+              'number.growatt_0hvrc0zr23rt0054_slot_1_power'
+            ) not in ['unknown', 'unavailable', 'none', '']
+          }}
+        state: >
+          {% set soll =
+            states('sensor.hem_growatt_adapter_sollleistung') | float(0)
+          %}
+          {% set aktuell =
+            states(
+              'number.growatt_0hvrc0zr23rt0054_slot_1_power'
+            ) | float(0)
+          %}
+          {% set schritt =
+            states(
+              'input_number.hem_adapter_maximale_schrittweite'
+            ) | float(100)
+          %}
+          {% set toleranz =
+            states('input_number.hem_adapter_toleranz') | float(50)
+          %}
+          {% set minimum =
+            state_attr(
+              'number.growatt_0hvrc0zr23rt0054_slot_1_power',
+              'min'
+            ) | float(0)
+          %}
+          {% set maximum =
+            state_attr(
+              'number.growatt_0hvrc0zr23rt0054_slot_1_power',
+              'max'
+            ) | float(800)
+          %}
+
+          {#
+            Growatt slot_1_power bildet nur die Entladeleistung ab.
+            Negative HEM-Sollwerte für Netzladung werden später über
+            einen getrennten Ladepfad umgesetzt.
+          #}
+          {% set ziel = [[soll, 0] | max, maximum] | min %}
+
+          {# Schutzabschaltungen müssen sofort auf 0 W schreiben. #}
+          {% if ziel <= toleranz %}
+            0
+
+          {# Kleine Abweichungen verursachen keinen neuen Schreibbefehl. #}
+          {% elif (ziel - aktuell) | abs <= toleranz %}
+            {{ aktuell | round(0) }}
+
+          {# Leistung nur um die konfigurierte Schrittweite erhöhen. #}
+          {% elif ziel > aktuell %}
+            {{ [[aktuell + schritt, ziel] | min, maximum] | min | round(0) }}
+
+          {# Leistung nur um die konfigurierte Schrittweite reduzieren. #}
+          {% else %}
+            {{ [[aktuell - schritt, ziel] | max, minimum] | max | round(0) }}
+          {% endif %}
+        attributes:
+          hem_sollleistung: >
+            {{ states('sensor.hem_growatt_adapter_sollleistung') }} W
+          aktueller_slotwert: >
+            {{
+              states(
+                'number.growatt_0hvrc0zr23rt0054_slot_1_power'
+              )
+            }} W
+          geraeteminimum: >
+            {{
+              state_attr(
+                'number.growatt_0hvrc0zr23rt0054_slot_1_power',
+                'min'
+              )
+            }} W
+          geraetemaximum: >
+            {{
+              state_attr(
+                'number.growatt_0hvrc0zr23rt0054_slot_1_power',
+                'max'
+              )
+            }} W
+          maximale_schrittweite: >
+            {{
+              states(
+                'input_number.hem_adapter_maximale_schrittweite'
+              )
+            }} W
+          toleranz: >
+            {{ states('input_number.hem_adapter_toleranz') }} W
+          hinweis: >
+            Negative HEM-Sollwerte werden in diesem Entladepfad als 0 W
+            behandelt. Netzladung folgt als eigener Adaptermodus.
+
+      - name: "HEM Growatt Adapter Aktion"
+        unique_id: hem_growatt_adapter_aktion
+        icon: mdi:clipboard-play-outline
+        availability: >
+          {{
+            states('sensor.hem_growatt_adapter_sollleistung')
+              not in ['unknown', 'unavailable', 'none', '']
+            and
+            states('sensor.hem_growatt_adapter_istleistung')
+              not in ['unknown', 'unavailable', 'none', '']
+          }}
+        state: >
+          {% set bereit =
+            is_state('binary_sensor.hem_growatt_adapter_bereit', 'on')
+          %}
+          {% set soll =
+            states('sensor.hem_growatt_adapter_sollleistung') | float(0)
+          %}
+          {% set ist =
+            states('sensor.hem_growatt_adapter_istleistung') | float(0)
+          %}
+          {% set toleranz =
+            states('input_number.hem_adapter_toleranz') | float(50)
+          %}
+
+          {% if not bereit %}
+            Keine Aktion – Adapter nicht bereit
+          {% elif ist < -toleranz and soll > toleranz %}
+            Laden stoppen
+          {% elif ist > toleranz and soll < -toleranz %}
+            Entladen stoppen
+          {% elif (soll - ist) | abs <= toleranz %}
+            Keine Änderung erforderlich
+          {% elif soll > ist %}
+            Leistung erhöhen
+          {% else %}
+            Leistung reduzieren
+          {% endif %}
+        attributes:
+          beobachtungsbetrieb: true
+          mqtt_befehl: >
+            Keiner – Schreibzugriff ist nicht implementiert
+
+      - name: "HEM Growatt Adapter Status"
+        unique_id: hem_growatt_adapter_status
+        icon: mdi:information-outline
+        state: >
+          {% if
+            is_state('input_boolean.hem_adapter_schreibzugriff', 'on')
+          %}
+            Schreibzugriff angefordert, aber nicht implementiert
+          {% elif
+            is_state('binary_sensor.hem_growatt_adapter_bereit', 'on')
+          %}
+            Beobachtung aktiv
+          {% else %}
+            Nicht bereit
+          {% endif %}
+        attributes:
+          adapter: Growatt NEXA über GroBro
+          steuerung: deaktiviert
+          beobachtungsbereit: >
+            {{ states('binary_sensor.hem_growatt_adapter_bereit') }}
+          schreibbereit: >
+            {{ states('binary_sensor.hem_growatt_adapter_schreibbereit') }}
+          fremdsteuerung_aktiv: >
+            {{
+              states(
+                'binary_sensor.hem_growatt_adapter_fremdsteuerung_aktiv'
+              )
+            }}
+          mqtt_schreibzugriff: nicht implementiert
+          sicherheit: >
+            Selbst ein aktivierter Helfer löst aktuell keinen Befehl aus
