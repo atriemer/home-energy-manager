@@ -541,6 +541,48 @@ template:
           steuerung: >
             Nur Empfehlung – keine Ansteuerung des NEXA
 
+      - name: "HEM Entlade-Sollleistung"
+        unique_id: hem_entlade_sollleistung
+        icon: mdi:battery-arrow-down
+        unit_of_measurement: W
+        state_class: measurement
+        availability: >
+          {{
+            states('sensor.hem_speicher_sollleistung')
+              not in ['unknown', 'unavailable', 'none', '']
+          }}
+        state: >
+          {% set soll =
+            states('sensor.hem_speicher_sollleistung') | float(0)
+          %}
+          {{ [soll, 0] | max | round(0) }}
+        attributes:
+          quelle: sensor.hem_speicher_sollleistung
+          bedeutung: >
+            Positive Speicher-Sollleistung als getrennte
+            Entladeanforderung. Ladeanforderungen ergeben hier 0 W.
+
+      - name: "HEM Lade-Sollleistung"
+        unique_id: hem_lade_sollleistung
+        icon: mdi:battery-arrow-up
+        unit_of_measurement: W
+        state_class: measurement
+        availability: >
+          {{
+            states('sensor.hem_speicher_sollleistung')
+              not in ['unknown', 'unavailable', 'none', '']
+          }}
+        state: >
+          {% set soll =
+            states('sensor.hem_speicher_sollleistung') | float(0)
+          %}
+          {{ [0 - soll, 0] | max | round(0) }}
+        attributes:
+          quelle: sensor.hem_speicher_sollleistung
+          bedeutung: >
+            Negative Speicher-Sollleistung als positive
+            Ladeanforderung. Entladeanforderungen ergeben hier 0 W.
+
       - name: "HEM Controller Begründung"
         unique_id: hem_controller_begrundung
         icon: mdi:text-box-search-outline
