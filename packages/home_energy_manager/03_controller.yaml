@@ -583,6 +583,64 @@ template:
             Negative Speicher-Sollleistung als positive
             Ladeanforderung. Entladeanforderungen ergeben hier 0 W.
 
+      - name: "HEM Controller Priorität"
+        unique_id: hem_controller_prioritaet
+        icon: mdi:priority-high
+
+        state: >
+          {% set batterie =
+            states('sensor.hem_batteriesituation')
+          %}
+          {% set betrieb =
+            states('sensor.hem_betriebssituation')
+          %}
+
+          {% if batterie == 'Daten fehlen' %}
+            Daten ungültig
+
+          {% elif batterie in [
+              'Einzelakku-Schutz',
+              'Temperatur-Schutz',
+              'SOC-Drift kritisch'
+            ] %}
+            Batterieschutz
+
+          {% elif betrieb in [
+              'Export',
+              'Starker Export'
+            ] %}
+            Export vermeiden
+
+          {% elif betrieb in [
+              'Netzbezug',
+              'Starker Netzbezug'
+            ] %}
+            Netzbezug reduzieren
+
+          {% elif batterie in [
+              'Abkühlen',
+              'Temperaturausgleich',
+              'SOC-Ausgleich'
+            ] %}
+            Akkuschonung
+
+          {% else %}
+            Normalbetrieb
+          {% endif %}
+
+        attributes:
+          batteriesituation: >
+            {{ states('sensor.hem_batteriesituation') }}
+
+          betriebssituation: >
+            {{ states('sensor.hem_betriebssituation') }}
+
+          exportdruck: >
+            {{ states('binary_sensor.hem_pv_uberschussdruck') }}
+
+          entladung_empfohlen: >
+            {{ states('binary_sensor.hem_entladung_empfohlen') }}
+
       - name: "HEM Controller Begründung"
         unique_id: hem_controller_begrundung
         icon: mdi:text-box-search-outline
