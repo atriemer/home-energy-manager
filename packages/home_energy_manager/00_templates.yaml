@@ -588,12 +588,52 @@ template:
         unique_id: hem_datenqualitaet
         icon: mdi:check-decagram
         state: >
-          {% set kommunikation =
+          {% set daten_gultig =
             is_state(
-              'binary_sensor.hem_lokale_datenquelle_gultig',
+              'binary_sensor.hem_daten_gultig',
               'on'
             )
           %}
+          {% set quelle =
+            states('sensor.hem_datenquelle')
+          %}
+
+          {% if not daten_gultig %}
+            Fehler
+          {% elif quelle == 'Lokal' %}
+            Optimal
+          {% elif quelle == 'Gemischt' %}
+            Gut
+          {% elif quelle == 'Cloud' %}
+            Eingeschränkt
+          {% else %}
+            Fehler
+          {% endif %}
+        attributes:
+          steuerung_zulässig: >
+            {{
+              is_state(
+                'binary_sensor.hem_daten_gultig',
+                'on'
+              )
+            }}
+          datenquelle: >
+            {{ states('sensor.hem_datenquelle') }}
+          lokale_datenquelle: >
+            {{
+              states(
+                'binary_sensor.hem_lokale_datenquelle_gultig'
+              )
+            }}
+          bewertung: >
+            Die Datenqualität bewertet die vom Provider gelieferten
+            Daten. Eine nicht verfügbare lokale Quelle ist bei
+            vollständigem Cloud-Fallback kein Fehler.
+
+      - name: "HEM Status"
+        unique_id: hem_status
+        icon: mdi:home-lightning-bolt
+        state: >
           {% set netz =
             is_state(
               'binary_sensor.hem_netzleistung_gultig',
@@ -618,54 +658,46 @@ template:
               'on'
             )
           %}
+          {% set daten_gultig =
+            is_state(
+              'binary_sensor.hem_daten_gultig',
+              'on'
+            )
+          %}
           {% set quelle =
             states('sensor.hem_datenquelle')
           %}
-          {% set nur_batterie_2_temperatur_cloud =
-            state_attr(
-              'sensor.hem_batterie_2_temperatur',
-              'datenquelle'
-            ) == 'cloud'
-            and state_attr(
-              'sensor.hem_pv_leistung',
-              'datenquelle'
-            ) == 'lokal'
-            and state_attr(
-              'sensor.hem_batterieleistung',
-              'datenquelle'
-            ) == 'lokal'
-            and state_attr(
-              'sensor.hem_batterieladestand',
-              'datenquelle'
-            ) == 'lokal'
-            and state_attr(
-              'sensor.hem_batterie_1_ladestand',
-              'datenquelle'
-            ) == 'lokal'
-            and state_attr(
-              'sensor.hem_batterie_2_ladestand',
-              'datenquelle'
-            ) == 'lokal'
-            and state_attr(
-              'sensor.hem_batterie_1_temperatur',
-              'datenquelle'
-            ) == 'lokal'
-          %}
 
-          {% if kommunikation and netz and pv
-                and batterie and temperatur
-                and quelle == 'Lokal' %}
-            Optimal
-          {% elif kommunikation and netz
-                and batterie and temperatur
-                and quelle == 'Gemischt' %}
-            Gut
-          {% elif kommunikation and netz and batterie %}
-            Eingeschränkt
+          {% if not netz %}
+            Netzsensor nicht verfügbar
+          {% elif not batterie %}
+            Batteriedaten nicht verfügbar
+          {% elif not temperatur %}
+            Temperaturdaten nicht verfügbar
+          {% elif not pv %}
+            Betrieb ohne gültige PV-Daten
+          {% elif not daten_gultig %}
+            Erforderliche Daten nicht verfügbar
+          {% elif quelle == 'Cloud' %}
+            Cloud-Fallback
+          {% elif quelle == 'Gemischt' %}
+            Betrieb mit Ersatzdaten
+          {% elif quelle == 'Lokal' %}
+            Normalbetrieb
           {% else %}
-            Fehler
+            Datenquelle nicht bestimmbar
           {% endif %}
         attributes:
+          datenqualität: >
+            {{ states('sensor.hem_datenqualitat') }}
+          datenquelle: >
+            {{ states('sensor.hem_datenquelle') }}
+          lokale_datenquelle: >
+            {{
+              states(
+                'binary_sensor.hem_lokale_datenquelle_gultig'
+              )
+            }}
           steuerung_zulässig: >
             {{
               is_state(
