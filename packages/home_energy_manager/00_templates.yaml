@@ -162,21 +162,41 @@ template:
           {% set entladen =
             states('sensor.nexa2000_0hvrc0zr23rt0054_discharge_power')
           %}
-          {% if lokal not in ['unknown', 'unavailable', 'none', ''] %}
+          {% set lokal_ok =
+            is_state('binary_sensor.hem_lokale_datenquelle_gueltig','on')
+          %}
+
+          {% if lokal_ok
+                and lokal not in ['unknown', 'unavailable', 'none', ''] %}
             {% set leistung = lokal | float * -1 %}
             {{ 0 if leistung | abs < 0.05 else leistung | round(1) }}
           {% elif laden not in ['unknown', 'unavailable', 'none', '']
                 and entladen not in ['unknown', 'unavailable', 'none', ''] %}
             {% set leistung = (entladen | float) - (laden | float) %}
             {{ 0 if leistung | abs < 0.05 else leistung | round(1) }}
+          {% elif lokal not in ['unknown', 'unavailable', 'none', ''] %}
+            {% set leistung = lokal | float * -1 %}
+            {{ 0 if leistung | abs < 0.05 else leistung | round(1) }}
           {% endif %}
         attributes:
           datenquelle: >
-            {% if states('sensor.growatt_0hvrc0zr23rt0054_charging_power')
-                  not in ['unknown', 'unavailable', 'none', ''] %}
+            {% set lokal_ok =
+              is_state('binary_sensor.hem_lokale_datenquelle_gueltig','on')
+            %}
+            {% if lokal_ok
+                  and states('sensor.growatt_0hvrc0zr23rt0054_charging_power')
+                    not in ['unknown', 'unavailable', 'none', ''] %}
               lokal
-            {% else %}
+            {% elif states('sensor.nexa2000_0hvrc0zr23rt0054_charging_power')
+                    not in ['unknown', 'unavailable', 'none', '']
+                  and states('sensor.nexa2000_0hvrc0zr23rt0054_discharge_power')
+                    not in ['unknown', 'unavailable', 'none', ''] %}
               cloud
+            {% elif states('sensor.growatt_0hvrc0zr23rt0054_charging_power')
+                    not in ['unknown', 'unavailable', 'none', ''] %}
+              lokal_fallback
+            {% else %}
+              keine
             {% endif %}
           vorzeichen: "positiv Entladung, negativ Ladung"
           status: "Vorzeichen im Beobachtungsbetrieb weiter prüfen"
