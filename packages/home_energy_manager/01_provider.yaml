@@ -53,6 +53,10 @@ template:
             {{ [lokal | float, 0] | max | round(1) }}
           {% endif %}
         attributes:
+          provider_schema: "1"
+          lokale_quelle: "sensor.growatt_0hvrc0zr23rt0054_pv_total_power"
+          cloud_quelle: "sensor.nexa2000_0hvrc0zr23rt0054_solar_power"
+          auswahlstrategie: "lokal > cloud > lokal_fallback"
           datenquelle: >
             {% set lokal_ok =
               is_state('binary_sensor.hem_lokale_datenquelle_gueltig','on')
@@ -114,6 +118,10 @@ template:
             {{ 0 if leistung | abs < 0.05 else leistung | round(1) }}
           {% endif %}
         attributes:
+          provider_schema: "1"
+          lokale_quelle: "sensor.growatt_0hvrc0zr23rt0054_charging_power"
+          cloud_quelle: "sensor.nexa2000_0hvrc0zr23rt0054_charging_power + sensor.nexa2000_0hvrc0zr23rt0054_discharge_power"
+          auswahlstrategie: "lokal > cloud > lokal_fallback"
           datenquelle: >
             {% set lokal_ok =
               is_state('binary_sensor.hem_lokale_datenquelle_gueltig','on')
@@ -172,6 +180,10 @@ template:
             {{ lokal | float | round(1) }}
           {% endif %}
         attributes:
+          provider_schema: "1"
+          lokale_quelle: "sensor.growatt_0hvrc0zr23rt0054_total_battery_soc"
+          cloud_quelle: "sensor.nexa2000_0hvrc0zr23rt0054_soc"
+          auswahlstrategie: "lokal > cloud > lokal_fallback"
           datenquelle: >
             {% set lokal =
               states('sensor.growatt_0hvrc0zr23rt0054_total_battery_soc')
@@ -232,6 +244,10 @@ template:
             {{ lokal | float | round(1) }}
           {% endif %}
         attributes:
+          provider_schema: "1"
+          lokale_quelle: "sensor.growatt_0hvrc0zr23rt0054_battery_1_soc"
+          cloud_quelle: "sensor.nexa2000_0hvrc0zr23rt0054_bat0_soc"
+          auswahlstrategie: "lokal > cloud > lokal_fallback"
           datenquelle: >
             {% set lokal =
               states('sensor.growatt_0hvrc0zr23rt0054_battery_1_soc')
@@ -292,6 +308,10 @@ template:
             {{ lokal | float | round(1) }}
           {% endif %}
         attributes:
+          provider_schema: "1"
+          lokale_quelle: "sensor.growatt_0hvrc0zr23rt0054_battery_2_soc"
+          cloud_quelle: "sensor.nexa2000_0hvrc0zr23rt0054_bat1_soc"
+          auswahlstrategie: "lokal > cloud > lokal_fallback"
           datenquelle: >
             {% set lokal =
               states('sensor.growatt_0hvrc0zr23rt0054_battery_2_soc')
@@ -352,6 +372,10 @@ template:
             {{ lokal | float | round(1) }}
           {% endif %}
         attributes:
+          provider_schema: "1"
+          lokale_quelle: "sensor.growatt_0hvrc0zr23rt0054_battery_1_temperature"
+          cloud_quelle: "sensor.nexa2000_0hvrc0zr23rt0054_bat0_temperature"
+          auswahlstrategie: "lokal > cloud > lokal_fallback"
           datenquelle: >
             {% set lokal =
               states('sensor.growatt_0hvrc0zr23rt0054_battery_1_temperature')
@@ -388,6 +412,10 @@ template:
           {{ states('sensor.nexa2000_0hvrc0zr23rt0054_bat1_temperature')
              | float | round(1) }}
         attributes:
+          provider_schema: "1"
+          lokale_quelle: "keine"
+          cloud_quelle: "sensor.nexa2000_0hvrc0zr23rt0054_bat1_temperature"
+          auswahlstrategie: "cloud_only"
           datenquelle: "cloud"
           datenqualitaet: "cloud_only"
           quell_entitaet: "sensor.nexa2000_0hvrc0zr23rt0054_bat1_temperature"
