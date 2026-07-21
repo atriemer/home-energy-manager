@@ -334,23 +334,21 @@ template:
         device_class: connectivity
         state: >
           {% set entity = states.sensor.hem_pv_leistung %}
-          {% set kommunikation =
-            is_state(
-              'binary_sensor.hem_lokale_datenquelle_gultig',
-              'on'
-            )
-          %}
 
           {{
-            kommunikation
-            and entity is defined
+            entity is defined
             and entity.state not in
               ['unknown', 'unavailable', 'none', '']
             and 0 <= entity.state | float <= 5000
+            and state_attr(
+              'sensor.hem_pv_leistung',
+              'datenquelle'
+            ) not in [none, 'keine', 'unknown', 'unavailable', '']
           }}
         attributes:
           prüfung: >
-            PV-Wert plausibel und lokaler Datenweg aktiv;
+            PV-Wert plausibel und durch den Provider aus einer
+            verfügbaren lokalen oder Cloudquelle geliefert;
             ein unveränderter Nachtwert von 0 W bleibt gültig
           datenquelle: >
             {{
@@ -462,11 +460,11 @@ template:
         state: >
           {{
             is_state(
-              'binary_sensor.hem_lokale_datenquelle_gultig',
+              'binary_sensor.hem_netzleistung_gultig',
               'on'
             )
             and is_state(
-              'binary_sensor.hem_netzleistung_gultig',
+              'binary_sensor.hem_pv_leistung_gultig',
               'on'
             )
             and is_state(

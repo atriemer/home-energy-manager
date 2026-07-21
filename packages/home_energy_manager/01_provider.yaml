@@ -41,7 +41,7 @@ template:
             states('sensor.nexa2000_0hvrc0zr23rt0054_solar_power')
           %}
           {% set lokal_ok =
-            is_state('binary_sensor.hem_lokale_datenquelle_gueltig','on')
+            is_state('binary_sensor.hem_lokale_datenquelle_gultig','on')
           %}
 
           {% if lokal_ok
@@ -59,7 +59,7 @@ template:
           auswahlstrategie: "lokal > cloud > lokal_fallback"
           datenquelle: >
             {% set lokal_ok =
-              is_state('binary_sensor.hem_lokale_datenquelle_gueltig','on')
+              is_state('binary_sensor.hem_lokale_datenquelle_gultig','on')
             %}
             {% if lokal_ok
                   and states('sensor.growatt_0hvrc0zr23rt0054_pv_total_power')
@@ -102,7 +102,7 @@ template:
             states('sensor.nexa2000_0hvrc0zr23rt0054_discharge_power')
           %}
           {% set lokal_ok =
-            is_state('binary_sensor.hem_lokale_datenquelle_gueltig','on')
+            is_state('binary_sensor.hem_lokale_datenquelle_gultig','on')
           %}
 
           {% if lokal_ok
@@ -124,7 +124,7 @@ template:
           auswahlstrategie: "lokal > cloud > lokal_fallback"
           datenquelle: >
             {% set lokal_ok =
-              is_state('binary_sensor.hem_lokale_datenquelle_gueltig','on')
+              is_state('binary_sensor.hem_lokale_datenquelle_gultig','on')
             %}
             {% if lokal_ok
                   and states('sensor.growatt_0hvrc0zr23rt0054_charging_power')
@@ -165,7 +165,7 @@ template:
             states('sensor.nexa2000_0hvrc0zr23rt0054_soc')
           %}
           {% set lokal_ok =
-            is_state('binary_sensor.hem_lokale_datenquelle_gueltig', 'on')
+            is_state('binary_sensor.hem_lokale_datenquelle_gultig', 'on')
           %}
 
           {% if lokal_ok
@@ -192,7 +192,7 @@ template:
               states('sensor.nexa2000_0hvrc0zr23rt0054_soc')
             %}
             {% set lokal_ok =
-              is_state('binary_sensor.hem_lokale_datenquelle_gueltig', 'on')
+              is_state('binary_sensor.hem_lokale_datenquelle_gultig', 'on')
             %}
             {% if lokal_ok
                   and lokal not in ['unknown', 'unavailable', 'none', '']
@@ -229,7 +229,7 @@ template:
             states('sensor.nexa2000_0hvrc0zr23rt0054_bat0_soc')
           %}
           {% set lokal_ok =
-            is_state('binary_sensor.hem_lokale_datenquelle_gueltig', 'on')
+            is_state('binary_sensor.hem_lokale_datenquelle_gultig', 'on')
           %}
 
           {% if lokal_ok
@@ -256,7 +256,7 @@ template:
               states('sensor.nexa2000_0hvrc0zr23rt0054_bat0_soc')
             %}
             {% set lokal_ok =
-              is_state('binary_sensor.hem_lokale_datenquelle_gueltig', 'on')
+              is_state('binary_sensor.hem_lokale_datenquelle_gultig', 'on')
             %}
             {% if lokal_ok
                   and lokal not in ['unknown', 'unavailable', 'none', '']
@@ -293,7 +293,7 @@ template:
             states('sensor.nexa2000_0hvrc0zr23rt0054_bat1_soc')
           %}
           {% set lokal_ok =
-            is_state('binary_sensor.hem_lokale_datenquelle_gueltig','on')
+            is_state('binary_sensor.hem_lokale_datenquelle_gultig','on')
           %}
 
           {% if lokal_ok
@@ -320,7 +320,7 @@ template:
               states('sensor.nexa2000_0hvrc0zr23rt0054_bat1_soc')
             %}
             {% set lokal_ok =
-              is_state('binary_sensor.hem_lokale_datenquelle_gueltig','on')
+              is_state('binary_sensor.hem_lokale_datenquelle_gultig','on')
             %}
             {% if lokal_ok
                   and lokal not in ['unknown', 'unavailable', 'none', '']
@@ -357,7 +357,7 @@ template:
             states('sensor.nexa2000_0hvrc0zr23rt0054_bat0_temperature')
           %}
           {% set lokal_ok =
-            is_state('binary_sensor.hem_lokale_datenquelle_gueltig', 'on')
+            is_state('binary_sensor.hem_lokale_datenquelle_gultig', 'on')
           %}
 
           {% if lokal_ok
@@ -384,7 +384,7 @@ template:
               states('sensor.nexa2000_0hvrc0zr23rt0054_bat0_temperature')
             %}
             {% set lokal_ok =
-              is_state('binary_sensor.hem_lokale_datenquelle_gueltig', 'on')
+              is_state('binary_sensor.hem_lokale_datenquelle_gultig', 'on')
             %}
             {% if lokal_ok
                   and lokal not in ['unknown', 'unavailable', 'none', '']
