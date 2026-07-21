@@ -122,8 +122,8 @@ template:
           vorzeichen: "positiv Aufnahme"
           berechnung: "Betrag der negativen HEM Systemleistung"
 
-      - name: "HEM Batterieleistung"
-        unique_id: hem_batterieleistung
+      - name: "HEM Provider Batterieleistung"
+        unique_id: hem_provider_batterieleistung
         unit_of_measurement: "W"
         device_class: power
         state_class: measurement
@@ -166,6 +166,26 @@ template:
             {% endif %}
           vorzeichen: "positiv Entladung, negativ Ladung"
           status: "Vorzeichen im Beobachtungsbetrieb weiter prüfen"
+
+
+      - name: "HEM Batterieleistung"
+        unique_id: hem_batterieleistung
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        availability: >
+          {{
+            states('sensor.hem_provider_batterieleistung')
+              not in ['unknown', 'unavailable', 'none', '']
+          }}
+        state: >
+          {{ states('sensor.hem_provider_batterieleistung') }}
+        attributes:
+          datenquelle: >
+            {{ state_attr('sensor.hem_provider_batterieleistung','datenquelle') }}
+          vorzeichen: "positiv Entladung, negativ Ladung"
+          status: "Wert stammt aus dem HEM Provider"
+
 
       - name: "HEM Batterieladestand"
         unique_id: hem_batterieladestand
