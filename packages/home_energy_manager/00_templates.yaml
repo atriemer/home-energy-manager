@@ -464,8 +464,8 @@ template:
               )
             }}
 
-      - name: "HEM Batterie 1 Temperatur"
-        unique_id: hem_batterie_1_temperatur
+      - name: "HEM Provider Batterie 1 Temperatur"
+        unique_id: hem_provider_batterie_1_temperatur
         unit_of_measurement: "°C"
         device_class: temperature
         state_class: measurement
@@ -484,21 +484,66 @@ template:
           {% set cloud =
             states('sensor.nexa2000_0hvrc0zr23rt0054_bat0_temperature')
           %}
-          {% if lokal not in ['unknown', 'unavailable', 'none', '']
+          {% set lokal_ok =
+            is_state('binary_sensor.hem_lokale_datenquelle_gueltig', 'on')
+          %}
+
+          {% if lokal_ok
+                and lokal not in ['unknown', 'unavailable', 'none', '']
                 and -20 <= lokal | float <= 80 %}
             {{ lokal | float | round(1) }}
           {% elif cloud not in ['unknown', 'unavailable', 'none', '']
                 and -20 <= cloud | float <= 80 %}
             {{ cloud | float | round(1) }}
+          {% elif lokal not in ['unknown', 'unavailable', 'none', '']
+                and -20 <= lokal | float <= 80 %}
+            {{ lokal | float | round(1) }}
           {% endif %}
         attributes:
           datenquelle: >
-            {% if states('sensor.growatt_0hvrc0zr23rt0054_battery_1_temperature')
-                  not in ['unknown', 'unavailable', 'none', ''] %}
+            {% set lokal =
+              states('sensor.growatt_0hvrc0zr23rt0054_battery_1_temperature')
+            %}
+            {% set cloud =
+              states('sensor.nexa2000_0hvrc0zr23rt0054_bat0_temperature')
+            %}
+            {% set lokal_ok =
+              is_state('binary_sensor.hem_lokale_datenquelle_gueltig', 'on')
+            %}
+            {% if lokal_ok
+                  and lokal not in ['unknown', 'unavailable', 'none', '']
+                  and -20 <= lokal | float <= 80 %}
               lokal
-            {% else %}
+            {% elif cloud not in ['unknown', 'unavailable', 'none', '']
+                  and -20 <= cloud | float <= 80 %}
               cloud
+            {% elif lokal not in ['unknown', 'unavailable', 'none', '']
+                  and -20 <= lokal | float <= 80 %}
+              lokal_fallback
+            {% else %}
+              keine
             {% endif %}
+
+      - name: "HEM Batterie 1 Temperatur"
+        unique_id: hem_batterie_1_temperatur
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        availability: >
+          {{
+            states('sensor.hem_provider_batterie_1_temperatur')
+              not in ['unknown', 'unavailable', 'none', '']
+          }}
+        state: >
+          {{ states('sensor.hem_provider_batterie_1_temperatur') }}
+        attributes:
+          datenquelle: >
+            {{
+              state_attr(
+                'sensor.hem_provider_batterie_1_temperatur',
+                'datenquelle'
+              )
+            }}
 
       - name: "HEM Batterie 2 Temperatur"
         unique_id: hem_batterie_2_temperatur
