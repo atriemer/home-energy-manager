@@ -545,8 +545,8 @@ template:
               )
             }}
 
-      - name: "HEM Batterie 2 Temperatur"
-        unique_id: hem_batterie_2_temperatur
+      - name: "HEM Provider Batterie 2 Temperatur"
+        unique_id: hem_provider_batterie_2_temperatur
         unit_of_measurement: "°C"
         device_class: temperature
         state_class: measurement
@@ -558,8 +558,37 @@ template:
              | float | round(1) }}
         attributes:
           datenquelle: "cloud"
+          datenqualitaet: "cloud_only"
           quell_entitaet: "sensor.nexa2000_0hvrc0zr23rt0054_bat1_temperature"
           hinweis: "Lokale Quelle für Batterie 2 noch nicht gefunden"
+
+      - name: "HEM Batterie 2 Temperatur"
+        unique_id: hem_batterie_2_temperatur
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        availability: >
+          {{
+            states('sensor.hem_provider_batterie_2_temperatur')
+              not in ['unknown', 'unavailable', 'none', '']
+          }}
+        state: >
+          {{ states('sensor.hem_provider_batterie_2_temperatur') }}
+        attributes:
+          datenquelle: >
+            {{
+              state_attr(
+                'sensor.hem_provider_batterie_2_temperatur',
+                'datenquelle'
+              )
+            }}
+          datenqualitaet: >
+            {{
+              state_attr(
+                'sensor.hem_provider_batterie_2_temperatur',
+                'datenqualitaet'
+              )
+            }}
 
   - binary_sensor:
       - name: "HEM Lokale Datenquelle gültig"
