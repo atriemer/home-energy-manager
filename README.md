@@ -80,9 +80,9 @@ Aktueller Entwicklungsstand:
 - [ ] Mapping-Konzept
 - [ ] Diagnosekonzept
 - [ ] Home-Assistant-Helper
-- [ ] Data-Layer-Templates
+- [x] Data-Layer-Templates
 - [ ] Plausibilitätsprüfung
-- [ ] Decision Engine
+- [x] Decision Engine (Beobachtungsmodus)
 - [ ] Control Layer
 - [ ] Dashboard
 - [ ] produktiver Parallelbetrieb
@@ -93,21 +93,15 @@ Aktueller Entwicklungsstand:
 ```text
 packages/
 └── home_energy_manager/
-    ├── README.md
-    ├── CHANGELOG.md
     ├── 00_templates.yaml
+    ├── 02_situationsbewertung.yaml
+    ├── 03_controller.yaml
+    ├── 04_adapter_growatt.yaml
     ├── 10_helpers.md
-    ├── 20_binary_sensors.yaml
-    ├── 30_automations.yaml
-    ├── 40_notifications.yaml
-    └── 50_dashboard.yaml
+    ├── README.md
+    └── CHANGELOG.md
 
 docs/
-├── architecture.md
-├── entities.md
-├── mapping.md
-├── diagnostics.md
-└── algorithm.md
 ```
 
 ## Entwicklungsregeln
