@@ -221,8 +221,8 @@ template:
           status: "Wert stammt aus dem HEM Provider"
 
 
-      - name: "HEM Batterieladestand"
-        unique_id: hem_batterieladestand
+      - name: "HEM Provider Batterieladestand"
+        unique_id: hem_provider_batterieladestand
         unit_of_measurement: "%"
         device_class: battery
         state_class: measurement
@@ -241,21 +241,66 @@ template:
           {% set cloud =
             states('sensor.nexa2000_0hvrc0zr23rt0054_soc')
           %}
-          {% if lokal not in ['unknown', 'unavailable', 'none', '']
+          {% set lokal_ok =
+            is_state('binary_sensor.hem_lokale_datenquelle_gueltig', 'on')
+          %}
+
+          {% if lokal_ok
+                and lokal not in ['unknown', 'unavailable', 'none', '']
                 and 0 <= lokal | float <= 100 %}
             {{ lokal | float | round(1) }}
           {% elif cloud not in ['unknown', 'unavailable', 'none', '']
                 and 0 <= cloud | float <= 100 %}
             {{ cloud | float | round(1) }}
+          {% elif lokal not in ['unknown', 'unavailable', 'none', '']
+                and 0 <= lokal | float <= 100 %}
+            {{ lokal | float | round(1) }}
           {% endif %}
         attributes:
           datenquelle: >
-            {% if states('sensor.growatt_0hvrc0zr23rt0054_total_battery_soc')
-                  not in ['unknown', 'unavailable', 'none', ''] %}
+            {% set lokal =
+              states('sensor.growatt_0hvrc0zr23rt0054_total_battery_soc')
+            %}
+            {% set cloud =
+              states('sensor.nexa2000_0hvrc0zr23rt0054_soc')
+            %}
+            {% set lokal_ok =
+              is_state('binary_sensor.hem_lokale_datenquelle_gueltig', 'on')
+            %}
+            {% if lokal_ok
+                  and lokal not in ['unknown', 'unavailable', 'none', '']
+                  and 0 <= lokal | float <= 100 %}
               lokal
-            {% else %}
+            {% elif cloud not in ['unknown', 'unavailable', 'none', '']
+                  and 0 <= cloud | float <= 100 %}
               cloud
+            {% elif lokal not in ['unknown', 'unavailable', 'none', '']
+                  and 0 <= lokal | float <= 100 %}
+              lokal_fallback
+            {% else %}
+              keine
             {% endif %}
+
+      - name: "HEM Batterieladestand"
+        unique_id: hem_batterieladestand
+        unit_of_measurement: "%"
+        device_class: battery
+        state_class: measurement
+        availability: >
+          {{
+            states('sensor.hem_provider_batterieladestand')
+              not in ['unknown', 'unavailable', 'none', '']
+          }}
+        state: >
+          {{ states('sensor.hem_provider_batterieladestand') }}
+        attributes:
+          datenquelle: >
+            {{
+              state_attr(
+                'sensor.hem_provider_batterieladestand',
+                'datenquelle'
+              )
+            }}
 
       - name: "HEM Batterie 1 Ladestand"
         unique_id: hem_batterie_1_ladestand
