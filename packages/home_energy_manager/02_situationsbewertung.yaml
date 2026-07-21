@@ -467,29 +467,62 @@ template:
               'on'
             )
           %}
-          {% set exportdruck =
-            is_state(
-              'binary_sensor.hem_pv_uberschussdruck',
-              'on'
-            )
-          %}
           {% set netzbezug =
             states('sensor.hem_betriebssituation')
             in ['Netzbezug', 'Starker Netzbezug']
           %}
 
           {{
-            not harte_sperre
-            and (
-              exportdruck
-              or (
-                netzbezug
-                and not schonbetrieb
-              )
-            )
+            netzbezug
+            and not harte_sperre
+            and not schonbetrieb
           }}
         attributes:
           logik: >
-            Entladung bei Netzbezug nur außerhalb des Schonbetriebs.
-            Bei PV-Export darf der Schonbetrieb übersteuert werden.
-            Eine harte Batteriesperre wird niemals übersteuert.
+            Entladung wird ausschließlich bei Netzbezug empfohlen.
+            Schonbetrieb und harte Batteriesperren verhindern die
+            Entladeempfehlung.
+
+      - name: "HEM Ladung empfohlen"
+        unique_id: hem_ladung_empfohlen
+        icon: mdi:battery-arrow-up
+        state: >
+          {% set daten_ok =
+            is_state(
+              'binary_sensor.hem_netzleistung_gultig',
+              'on'
+            )
+            and is_state(
+              'binary_sensor.hem_batteriedaten_gultig',
+              'on'
+            )
+            and is_state(
+              'binary_sensor.hem_temperaturen_gultig',
+              'on'
+            )
+          %}
+          {% set export =
+            states('sensor.hem_betriebssituation')
+            in ['Export', 'Starker Export']
+          %}
+          {% set temperatur_schutz =
+            is_state(
+              'sensor.hem_batteriesituation',
+              'Temperatur-Schutz'
+            )
+          %}
+
+          {{
+            daten_ok
+            and export
+            and not temperatur_schutz
+          }}
+        attributes:
+          logik: >
+            Laden wird bei Netzeinspeisung empfohlen, sofern alle
+            benötigten Daten gültig sind und kein harter
+            Temperaturschutz aktiv ist.
+          betriebssituation: >
+            {{ states('sensor.hem_betriebssituation') }}
+          batteriesituation: >
+            {{ states('sensor.hem_batteriesituation') }}
