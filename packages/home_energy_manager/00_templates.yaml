@@ -16,8 +16,8 @@ template:
           quell_entitaet: "sensor.shellypro3em_total_active_power"
           vorzeichen: "positiv Netzbezug, negativ Netzeinspeisung"
 
-      - name: "HEM PV Leistung"
-        unique_id: hem_pv_leistung
+      - name: "HEM Provider PV Leistung"
+        unique_id: hem_provider_pv_leistung
         unit_of_measurement: "W"
         device_class: power
         state_class: measurement
@@ -52,7 +52,23 @@ template:
             {% else %}
               keine
             {% endif %}
-          umfang: "Nur PV-Leistung des steuerbaren NEXA-Systems"
+
+      - name: "HEM PV Leistung"
+        unique_id: hem_pv_leistung
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        availability: >
+          {{
+            states('sensor.hem_provider_pv_leistung')
+              not in ['unknown', 'unavailable', 'none', '']
+          }}
+        state: >
+          {{ states('sensor.hem_provider_pv_leistung') }}
+        attributes:
+          datenquelle: >
+            {{ state_attr('sensor.hem_provider_pv_leistung','datenquelle') }}
+          umfang: "PV-Leistung aus HEM Provider"
 
       - name: "HEM Systemleistung"
         unique_id: hem_systemleistung
