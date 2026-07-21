@@ -7,16 +7,13 @@
 # Gerätebefehle werden nur bei aktivem Schreibzugriff,
 # schreibbereitem Adapter und ohne erkannte Fremdsteuerung gesendet.
 #
-# Vorzeichenkonvention:
-#   positiv = Entladen
-#   negativ = Laden
-#   0       = Inaktiv
-#
 # Der herstellerunabhängige Controller liefert:
-#   sensor.hem_speicher_sollleistung
 #
-# Der Adapter übersetzt diesen Sollwert in konkrete
-# Growatt-/GroBro-Gerätebefehle.
+#   sensor.hem_entlade_sollleistung
+#   sensor.hem_lade_sollleistung
+#
+# Der Adapter erzeugt daraus intern den für Growatt
+# benötigten Gerätesollwert.
 
 input_number:
   hem_adapter_maximale_schrittweite:
@@ -53,9 +50,10 @@ template:
           {{
             is_state('binary_sensor.hem_daten_gultig', 'on')
             and
-            is_state('binary_sensor.hem_batterie_hart_gesperrt', 'off')
+            states('sensor.hem_entlade_sollleistung')
+              not in ['unknown', 'unavailable', 'none', '']
             and
-            states('sensor.hem_speicher_sollleistung')
+            states('sensor.hem_lade_sollleistung')
               not in ['unknown', 'unavailable', 'none', '']
             and
             states('sensor.hem_aktuelle_speicherleistung')
@@ -64,8 +62,12 @@ template:
         attributes:
           daten_gültig: >
             {{ states('binary_sensor.hem_daten_gultig') }}
-          batterie_hart_gesperrt: >
-            {{ states('binary_sensor.hem_batterie_hart_gesperrt') }}
+          entlade_sollleistung: >
+            {{ states('sensor.hem_entlade_sollleistung') }}
+          lade_sollleistung: >
+            {{ states('sensor.hem_lade_sollleistung') }}
+          batteriesituation: >
+            {{ states('sensor.hem_batteriesituation') }}
           schreibzugriff: >
             {{ states('input_boolean.hem_adapter_schreibzugriff') }}
           betriebsart: >
@@ -246,15 +248,17 @@ template:
               not in ['unknown', 'unavailable', 'none', '']
           }}
         state: >
-          {{
-            states('sensor.hem_speicher_sollleistung')
-              | float(0)
-              | round(0)
-          }}
+          {% set entladen =
+            states('sensor.hem_entlade_sollleistung') | float(0)
+          %}
+          {% set laden =
+            states('sensor.hem_lade_sollleistung') | float(0)
+          %}
+
+          {{ (entladen - laden) | round(0) }}
         attributes:
-          quelle: sensor.hem_speicher_sollleistung
-          vorzeichen: >
-            positiv Entladung, negativ Ladung
+          quelle_entladung: sensor.hem_entlade_sollleistung
+          quelle_ladung: sensor.hem_lade_sollleistung
 
       - name: "HEM Growatt Adapter Istleistung"
         unique_id: hem_growatt_adapter_istleistung
