@@ -123,17 +123,79 @@ template:
             Mindestens eine vorhandene NEXA-Steuerung könnte gleichzeitig
             mit dem HEM auf das Gerät schreiben
 
+
+  - sensor:
+
+      - name: "HEM Schreibstatus"
+        unique_id: hem_schreibstatus
+        icon: mdi:shield-lock-outline
+        state: >
+          {% if not is_state(
+                'input_boolean.hem_adapter_schreibzugriff',
+                'on'
+              ) %}
+            Blockiert: Schreibzugriff deaktiviert
+          {% elif not is_state(
+                'binary_sensor.hem_daten_gultig',
+                'on'
+              ) %}
+            Blockiert: Daten ungültig
+          {% elif not is_state(
+                'binary_sensor.hem_growatt_adapter_bereit',
+                'on'
+              ) %}
+            Blockiert: Adapter nicht bereit
+          {% elif is_state(
+                'binary_sensor.hem_growatt_adapter_fremdsteuerung_aktiv',
+                'on'
+              ) %}
+            Blockiert: Fremdsteuerung aktiv
+          {% else %}
+            Freigegeben
+          {% endif %}
+        attributes:
+          entlade_sollleistung: >
+            {{ states('sensor.hem_entlade_sollleistung') }}
+          lade_sollleistung: >
+            {{ states('sensor.hem_lade_sollleistung') }}
+          daten_gueltig: >
+            {{ states('binary_sensor.hem_daten_gultig') }}
+          adapter_bereit: >
+            {{ states('binary_sensor.hem_growatt_adapter_bereit') }}
+          fremdsteuerung: >
+            {{ states('binary_sensor.hem_growatt_adapter_fremdsteuerung_aktiv') }}
+          schreibzugriff: >
+            {{ states('input_boolean.hem_adapter_schreibzugriff') }}
+
+
+  - binary_sensor:
+
+      - name: "HEM Schreibfreigabe"
+        unique_id: hem_schreibfreigabe
+        icon: mdi:shield-lock-outline
+        state: >
+          {{
+            is_state('input_boolean.hem_adapter_schreibzugriff','on')
+            and
+            is_state('binary_sensor.hem_daten_gultig','on')
+            and
+            is_state('binary_sensor.hem_growatt_adapter_bereit','on')
+            and
+            is_state(
+              'binary_sensor.hem_growatt_adapter_fremdsteuerung_aktiv',
+              'off'
+            )
+          }}
+
       - name: "HEM Growatt Adapter Schreibbereit"
         unique_id: hem_growatt_adapter_schreibbereit
         icon: mdi:shield-check-outline
         device_class: safety
         state: >
           {{
-            is_state('binary_sensor.hem_growatt_adapter_bereit', 'on')
-            and
             is_state(
-              'binary_sensor.hem_growatt_adapter_fremdsteuerung_aktiv',
-              'off'
+              'binary_sensor.hem_schreibfreigabe',
+              'on'
             )
             and
             states(
