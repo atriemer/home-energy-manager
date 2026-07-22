@@ -1,0 +1,162 @@
+# Home Energy Manager
+# Zusammenfassende Entscheidungsebene
+#
+# Diese Datei berechnet keine eigene Speicherleistung.
+# Sie fasst die Ergebnisse aus folgenden Ebenen zusammen:
+#
+#   00_templates.yaml
+#   02_situationsbewertung.yaml
+#   03_controller.yaml
+#   04_adapter_growatt.yaml
+
+template:
+  - sensor:
+      - name: "HEM Systemzustand"
+        unique_id: hem_systemzustand
+        icon: mdi:state-machine
+        state: >
+          {% set daten_ok =
+            is_state(
+              'binary_sensor.hem_daten_gultig',
+              'on'
+            )
+          %}
+          {% set manuell_gesperrt =
+            is_state(
+              'input_boolean.hem_manuelle_sperre',
+              'on'
+            )
+          %}
+          {% set automatik =
+            is_state(
+              'input_boolean.hem_automatik',
+              'on'
+            )
+          %}
+          {% set fremdsteuerung =
+            is_state(
+              'binary_sensor.hem_growatt_adapter_fremdsteuerung_aktiv',
+              'on'
+            )
+          %}
+          {% set adapter_bereit =
+            is_state(
+              'binary_sensor.hem_growatt_adapter_bereit',
+              'on'
+            )
+          %}
+          {% set schreibfreigabe =
+            is_state(
+              'binary_sensor.hem_schreibfreigabe',
+              'on'
+            )
+          %}
+
+          {% if not daten_ok %}
+            Daten ungültig
+          {% elif manuell_gesperrt %}
+            Manuell gesperrt
+          {% elif not automatik %}
+            Beobachtungsbetrieb
+          {% elif fremdsteuerung %}
+            Fremdsteuerung
+          {% elif not adapter_bereit %}
+            Adapter nicht bereit
+          {% elif not schreibfreigabe %}
+            Schreibzugriff blockiert
+          {% else %}
+            {{ states('sensor.hem_controller_prioritat') }}
+          {% endif %}
+        attributes:
+          batteriesituation: >
+            {{ states('sensor.hem_batteriesituation') }}
+          betriebssituation: >
+            {{ states('sensor.hem_betriebssituation') }}
+          empfohlene_strategie: >
+            {{ states('sensor.hem_empfohlene_strategie') }}
+          controller_prioritaet: >
+            {{ states('sensor.hem_controller_prioritat') }}
+          speicher_sollleistung: >
+            {{ states('sensor.hem_speicher_sollleistung') }}
+          schreibstatus: >
+            {{ states('sensor.hem_schreibstatus') }}
+
+      - name: "HEM Entscheidungsgrund"
+        unique_id: hem_entscheidungsgrund
+        icon: mdi:comment-text-outline
+        state: >
+          {% set daten_ok =
+            is_state(
+              'binary_sensor.hem_daten_gultig',
+              'on'
+            )
+          %}
+          {% set manuell_gesperrt =
+            is_state(
+              'input_boolean.hem_manuelle_sperre',
+              'on'
+            )
+          %}
+          {% set automatik =
+            is_state(
+              'input_boolean.hem_automatik',
+              'on'
+            )
+          %}
+          {% set fremdsteuerung =
+            is_state(
+              'binary_sensor.hem_growatt_adapter_fremdsteuerung_aktiv',
+              'on'
+            )
+          %}
+          {% set adapter_bereit =
+            is_state(
+              'binary_sensor.hem_growatt_adapter_bereit',
+              'on'
+            )
+          %}
+          {% set schreibfreigabe =
+            is_state(
+              'binary_sensor.hem_schreibfreigabe',
+              'on'
+            )
+          %}
+
+          {% if not daten_ok %}
+            HEM-Eingangsdaten sind nicht vollständig oder unplausibel.
+          {% elif manuell_gesperrt %}
+            Die manuelle HEM-Sperre ist aktiviert.
+          {% elif not automatik %}
+            HEM beobachtet das System, führt aber keine automatische Steuerung aus.
+          {% elif fremdsteuerung %}
+            Eine bestehende externe Automation steuert den Speicher.
+          {% elif not adapter_bereit %}
+            Der Growatt-Adapter erfüllt derzeit nicht alle technischen Voraussetzungen.
+          {% elif not schreibfreigabe %}
+            {{ states('sensor.hem_schreibstatus') }}
+          {% else %}
+            {{ states('sensor.hem_controller_begrundung') }}
+          {% endif %}
+        attributes:
+          controller_begrundung: >
+            {{ states('sensor.hem_controller_begrundung') }}
+          batteriesituation: >
+            {{ states('sensor.hem_batteriesituation') }}
+          betriebssituation: >
+            {{ states('sensor.hem_betriebssituation') }}
+          netzleistung: >
+            {{ states('sensor.hem_netzleistung') }}
+          pv_leistung: >
+            {{ states('sensor.hem_pv_leistung') }}
+          speicher_sollleistung: >
+            {{ states('sensor.hem_speicher_sollleistung') }}
+          daten_gueltig: >
+            {{ states('binary_sensor.hem_daten_gultig') }}
+          fremdsteuerung_aktiv: >
+            {{
+              states(
+                'binary_sensor.hem_growatt_adapter_fremdsteuerung_aktiv'
+              )
+            }}
+          schreibfreigabe: >
+            {{ states('binary_sensor.hem_schreibfreigabe') }}
